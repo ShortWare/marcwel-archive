@@ -1,6 +1,6 @@
 # Maintainer: Your Name <you@example.com>
 pkgname=marcwel-archive
-pkgver=0.6.9.4.2.0
+pkgver=0.69.420
 pkgrel=1
 pkgdesc="Makes files larger"
 arch=('x86_64')
