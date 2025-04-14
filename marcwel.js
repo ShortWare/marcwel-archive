@@ -20,10 +20,14 @@ function getAllFiles(dirPath, basePath = dirPath) {
 }
 
 function pack(inputPath, outputPath, options = {}) {
+  if (outputPath && (outputPath.startsWith("-") || outputPath.startsWith("--"))) {
+    options[outputPath.replace(/^--?/, "")] = true
+    outputPath = null
+  }
   const stats = fs.statSync(inputPath);
   const archive = {
     type: "marcwel",
-    version: "v0.69.420",
+    version: "v1.69.420",
     compressionRatio: "∞:1",
     createdAt: new Date().toISOString(),
     files: [],
