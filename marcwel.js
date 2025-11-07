@@ -8,8 +8,11 @@ function getAllFiles(dir, base = dir) {
   let out = []
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name)
-    if (e.isDirectory()) out = out.concat(getAllFiles(full, base))
-    else out.push(path.relative(base, full))
+    if (e.isDirectory()) {
+      const inner = getAllFiles(full, base)
+      if (inner.length === 0) out.push(path.relative(base, full) + "/")
+      else out = out.concat(inner)
+    } else out.push(path.relative(base, full))
   }
   return out
 }
@@ -102,7 +105,8 @@ async function unpack(archive, outdir) {
   let offset = 8 + headerLen
   const fileSize = fs.statSync(archive).size
   let extracted = 0
-  for (let i = 0; i < (header.files || Infinity); i++) {
+
+  for (let i = 0; i < header.files; i++) {
     const nameLenBuf = Buffer.alloc(4)
     fs.readSync(fd, nameLenBuf, 0, 4, offset)
     offset += 4
@@ -116,10 +120,16 @@ async function unpack(archive, outdir) {
     const fileLen = Number(sizeBuf.readBigUInt64LE())
     const name = nameBuf.toString("utf8")
     const outPath = path.join(outdir, name)
+
+    if (name.endsWith("/")) {
+      fs.mkdirSync(outPath, { recursive: true })
+      continue
+    }
+
     fs.mkdirSync(path.dirname(outPath), { recursive: true })
 
     await new Promise((resolve) => {
-      const rs = fs.createReadStream(null, { fd, start: offset, end: offset + fileLen - 1 })
+      const rs = fs.createReadStream(archive, { start: offset, end: offset + fileLen - 1 })
       const ws = fs.createWriteStream(outPath)
       rs.on("data", (chunk) => {
         extracted += chunk.length
@@ -128,12 +138,15 @@ async function unpack(archive, outdir) {
       rs.on("end", resolve)
       rs.pipe(ws)
     })
+
     offset += fileLen
+    if (offset >= fileSize) break
   }
+
+  fs.closeSync(fd)
   process.stdout.write("\n")
   console.log(`✅ Unpacked to ${outdir}`)
 }
-
 const [,, cmd, input, output, ...rest] = process.argv
 const inflate = rest.includes("--inflate")
 
